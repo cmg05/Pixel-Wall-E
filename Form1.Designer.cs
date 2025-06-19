@@ -116,6 +116,7 @@
             // 
             toolStripStatusLabelPosition.BorderSides = ToolStripStatusLabelBorderSides.Right;
             toolStripStatusLabelPosition.BorderStyle = Border3DStyle.Etched;
+            toolStripStatusLabelPosition.ForeColor = SystemColors.Control;
             toolStripStatusLabelPosition.Name = "toolStripStatusLabelPosition";
             toolStripStatusLabelPosition.Size = new Size(107, 24);
             toolStripStatusLabelPosition.Text = "Posición: (0, 0)";
@@ -124,12 +125,14 @@
             // 
             toolStripStatusLabelColor.BorderSides = ToolStripStatusLabelBorderSides.Right;
             toolStripStatusLabelColor.BorderStyle = Border3DStyle.Etched;
+            toolStripStatusLabelColor.ForeColor = SystemColors.ButtonFace;
             toolStripStatusLabelColor.Name = "toolStripStatusLabelColor";
             toolStripStatusLabelColor.Size = new Size(91, 24);
             toolStripStatusLabelColor.Text = "Color: Black";
             // 
             // toolStripStatusLabelBrush
             // 
+            toolStripStatusLabelBrush.ForeColor = SystemColors.ButtonFace;
             toolStripStatusLabelBrush.Name = "toolStripStatusLabelBrush";
             toolStripStatusLabelBrush.Size = new Size(79, 24);
             toolStripStatusLabelBrush.Text = "Pincel: 1px";

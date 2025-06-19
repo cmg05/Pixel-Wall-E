@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Pixel_Wall_E
 {
@@ -38,46 +37,45 @@ namespace Pixel_Wall_E
         Number,
         String,
         Identifier,
-        True,       // Valor booleano true
-        False,      // Valor booleano false
+        True,
+        False,
 
         // Operadores
-        Plus,       // +
-        Minus,      // -
-        Multiply,   // *
-        Divide,     // /
-        Modulo,     // %
-        Power,      // **
+        Plus,
+        Minus,
+        Multiply,
+        Divide,
+        Modulo,
+        Power,
 
-        // Operadores de comparación
-        Equal,      // ==
-        NotEqual,   // !=
-        LessThan,   // <
-        GreaterThan, // >
-        LessOrEqual, // <=
-        GreaterOrEqual, // >=
+        // Comparación
+        Equal,
+        NotEqual,
+        LessThan,
+        GreaterThan,
+        LessOrEqual,
+        GreaterOrEqual,
 
-        // Operadores lógicos
-        And,        // &&
-        Or,         // ||
-        Not,        // !
+        // Lógicos
+        And,
+        Or,
+        Not,
 
         // Asignación
-        Assign,     // <- o =
+        Assign,
 
         // Símbolos
-        LeftParen,  // (
-        RightParen, // )
-        LeftBracket, // [
-        RightBracket, // ]
-        Comma,      // ,
-        Semicolon,  // ;
-        Colon,      // :
+        LeftParen,
+        RightParen,
+        LeftBracket,
+        RightBracket,
+        Comma,
+        Semicolon,
+        Colon,
 
         // Control
-        NewLine,    // \n
-        EOF,        // Fin de archivo
-
+        NewLine,
+        EOF,
         Comment
     }
 
@@ -125,19 +123,16 @@ namespace Pixel_Wall_E
                     {
                         tokens.Add(new Token(TokenType.NewLine, "\\n", _lineNumber, _columnNumber));
                         _lineNumber++;
-                        _columnNumber = 1;
-                    }
-                    else
-                    {
-                        _columnNumber++;
+                        _columnNumber = 0; // Reset to 0 (se incrementará a 1 después)
                     }
                     _position++;
+                    _columnNumber++;
                     continue;
                 }
 
                 if (current == '/' && PeekNext() == '/')
                 {
-                    SkipComment();
+                    tokens.Add(ReadComment());
                     continue;
                 }
 
@@ -166,16 +161,23 @@ namespace Pixel_Wall_E
             return tokens;
         }
 
-        private char Peek() => _source[_position];
+        private char Peek() => _position < _source.Length ? _source[_position] : '\0';
         private char PeekNext() => _position + 1 < _source.Length ? _source[_position + 1] : '\0';
 
-        private void SkipComment()
+        private Token ReadComment()
         {
+            int startColumn = _columnNumber;
+            _position += 2; // Salta "//"
+            _columnNumber += 2;
+
+            int start = _position;
             while (_position < _source.Length && Peek() != '\n')
             {
                 _position++;
                 _columnNumber++;
             }
+
+            return new Token(TokenType.Comment, _source.Substring(start, _position - start), _lineNumber, startColumn);
         }
 
         private Token ReadNumber()
@@ -197,8 +199,7 @@ namespace Pixel_Wall_E
             int start = _position;
             int startColumn = _columnNumber;
 
-            while (_position < _source.Length &&
-                  (char.IsLetterOrDigit(Peek()) || Peek() == '_'))
+            while (_position < _source.Length && (char.IsLetterOrDigit(Peek()) || Peek() == '_'))
             {
                 _position++;
                 _columnNumber++;
@@ -221,7 +222,6 @@ namespace Pixel_Wall_E
                 "isbrushcolor" => TokenType.IsBrushColor,
                 "isbrushsize" => TokenType.IsBrushSize,
                 "iscanvascolor" => TokenType.IsCanvasColor,
-                "goto" => TokenType.Goto,
                 "if" => TokenType.If,
                 "then" => TokenType.Then,
                 "else" => TokenType.Else,
@@ -229,6 +229,7 @@ namespace Pixel_Wall_E
                 "while" => TokenType.While,
                 "do" => TokenType.Do,
                 "endwhile" => TokenType.EndWhile,
+                "goto" => TokenType.Goto,
                 "true" => TokenType.True,
                 "false" => TokenType.False,
                 "and" => TokenType.And,
@@ -243,7 +244,7 @@ namespace Pixel_Wall_E
         private Token ReadString()
         {
             int startColumn = _columnNumber;
-            _position++; 
+            _position++; // Salta la comilla inicial
             _columnNumber++;
 
             int start = _position;
@@ -268,21 +269,17 @@ namespace Pixel_Wall_E
                 }
 
                 if (Peek() == '"')
-                {
                     break;
-                }
 
                 _position++;
                 _columnNumber++;
             }
 
             if (_position >= _source.Length)
-            {
-                throw new Exception($"Cadena sin terminar en línea {_lineNumber}, columna {startColumn}");
-            }
+                throw new Exception($"Cadena sin terminar en línea {_lineNumber}");
 
             string value = _source.Substring(start, _position - start);
-            _position++; 
+            _position++; // Salta la comilla final
             _columnNumber++;
 
             return new Token(TokenType.String, value, _lineNumber, startColumn);
