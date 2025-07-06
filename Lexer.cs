@@ -32,6 +32,7 @@ namespace Pixel_Wall_E
         Do,
         EndWhile,
         Goto,
+        Label,
 
         // Valores literales
         Number,
@@ -199,13 +200,23 @@ namespace Pixel_Wall_E
             int start = _position;
             int startColumn = _columnNumber;
 
-            while (_position < _source.Length && (char.IsLetterOrDigit(Peek()) || Peek() == '_'))
+            while (_position < _source.Length && (char.IsLetterOrDigit(Peek()) || Peek() == '_' || Peek() == ':'))
             {
                 _position++;
                 _columnNumber++;
             }
 
             string value = _source.Substring(start, _position - start);
+
+            if (value.EndsWith(":"))
+            {
+                string label = value.TrimEnd(':');
+                if (!string.IsNullOrWhiteSpace(label))
+                {
+                    return new Token(TokenType.Label, label, _lineNumber, startColumn);
+                }
+            }
+
             TokenType type = value.ToLower() switch
             {
                 "spawn" => TokenType.Spawn,

@@ -13,14 +13,14 @@ namespace Pixel_Wall_E
         private Bitmap canvas;
         private Graphics graphics;
         private Point currentPosition;
-        private Color currentColor = Color.Transparent;
+        private Color currentColor = Color.Black;
         private int brushSize = 1;
         private RichTextBox lineNumbersTextBox;
 
         public Form1()
         {
             InitializeComponent();
-            numericUpDownCanvasSize.Value = 256;
+            numericUpDownCanvasSize.Value = 600; 
             InitializeCanvas();
             InitializeLineNumbers();
             interpreter = new WallEInterpreter(this);
@@ -33,8 +33,14 @@ namespace Pixel_Wall_E
             canvas = new Bitmap(size, size);
             graphics = Graphics.FromImage(canvas);
             graphics.Clear(Color.White);
+
             panelCanvas.Image = canvas;
             panelCanvas.Size = new Size(size, size);
+            panelCanvas.Location = new Point(
+                textBoxCode.Right + 20,  
+                75  
+            );
+
             currentPosition = Point.Empty;
         }
 
@@ -49,7 +55,7 @@ namespace Pixel_Wall_E
                 ReadOnly = true,
                 ScrollBars = RichTextBoxScrollBars.None,
                 Font = textBoxCode.Font,
-                BackColor = Color.LightGray,
+                BackColor = Color.FromArgb(30, 30, 30),
                 ForeColor = Color.DarkGray,
                 Multiline = true
             };
@@ -63,12 +69,6 @@ namespace Pixel_Wall_E
             };
         }
 
-        private void UpdateLineNumbers()
-        {
-            var lines = textBoxCode.Lines.Length;
-            lineNumbersTextBox.Text = string.Join(Environment.NewLine, Enumerable.Range(1, lines));
-        }
-
         private void UpdateStatusBar()
         {
             toolStripStatusLabelPosition.Text = $"Posición: ({currentPosition.X}, {currentPosition.Y})";
@@ -76,7 +76,6 @@ namespace Pixel_Wall_E
             toolStripStatusLabelBrush.Text = $"Pincel: {brushSize}px";
         }
 
-        // Métodos llamados por el intérprete
         public void ExecuteSpawn(int x, int y)
         {
             if (x < 0 || y < 0 || x >= canvas.Width || y >= canvas.Height)
@@ -85,6 +84,7 @@ namespace Pixel_Wall_E
             currentPosition = new Point(x, y);
             UpdateStatusBar();
         }
+
 
         public void SetColor(string colorName)
         {
@@ -107,7 +107,7 @@ namespace Pixel_Wall_E
         public void SetBrushSize(int size)
         {
             brushSize = Math.Max(1, size);
-            if (brushSize % 2 == 0) brushSize--; 
+            if (brushSize % 2 == 0) brushSize--;
             UpdateStatusBar();
         }
 
@@ -115,6 +115,9 @@ namespace Pixel_Wall_E
         {
             if (currentColor == Color.Transparent) return;
             if (distance <= 0) return;
+
+            // Aumentar distancia para líneas más grandes
+            distance = (int)(distance * 1.5);
 
             Pen pen = new Pen(currentColor, brushSize);
             Point end = new Point(
@@ -135,6 +138,8 @@ namespace Pixel_Wall_E
         {
             if (currentColor == Color.Transparent) return;
             if (radius <= 0) return;
+
+            radius = (int)(radius * 1.8);
 
             Point center = new Point(
                 currentPosition.X + dirX * radius,
@@ -162,7 +167,9 @@ namespace Pixel_Wall_E
             if (currentColor == Color.Transparent) return;
             if (width <= 0 || height <= 0) return;
 
-            // Calcular posición central
+            width = (int)(width * 2.5);
+            height = (int)(height * 2.5);
+
             Point center = new Point(
                 currentPosition.X + dirX * distance,
                 currentPosition.Y + dirY * distance
@@ -171,13 +178,11 @@ namespace Pixel_Wall_E
             center.X = Math.Max(width / 2, Math.Min(center.X, canvas.Width - 1 - width / 2));
             center.Y = Math.Max(height / 2, Math.Min(center.Y, canvas.Height - 1 - height / 2));
 
-            // Calcular esquina superior izquierda
             Point topLeft = new Point(
                 center.X - width / 2,
                 center.Y - height / 2
             );
 
-            // Dibujar rectángulo
             graphics.DrawRectangle(
                 new Pen(currentColor, brushSize),
                 topLeft.X,
@@ -191,84 +196,9 @@ namespace Pixel_Wall_E
             UpdateStatusBar();
         }
 
-        public void Fill()
-        {
-            if (currentColor == Color.Transparent) return;
-
-            Color targetColor = canvas.GetPixel(currentPosition.X, currentPosition.Y);
-            if (targetColor.ToArgb() == currentColor.ToArgb()) return;
-
-            Stack<Point> pixels = new Stack<Point>();
-            pixels.Push(currentPosition);
-
-            while (pixels.Count > 0)
-            {
-                Point p = pixels.Pop();
-                if (p.X < 0 || p.Y < 0 || p.X >= canvas.Width || p.Y >= canvas.Height)
-                    continue;
-
-                if (canvas.GetPixel(p.X, p.Y).ToArgb() == targetColor.ToArgb())
-                {
-                    canvas.SetPixel(p.X, p.Y, currentColor);
-                    pixels.Push(new Point(p.X + 1, p.Y));
-                    pixels.Push(new Point(p.X - 1, p.Y));
-                    pixels.Push(new Point(p.X, p.Y + 1));
-                    pixels.Push(new Point(p.X, p.Y - 1));
-                }
-            }
-            panelCanvas.Refresh();
-            UpdateStatusBar();
-        }
-
-        // Funciones de consulta
         public int GetActualX() => currentPosition.X;
         public int GetActualY() => currentPosition.Y;
         public int GetCanvasSize() => canvas.Width;
-
-        public int GetColorCount(string color, int x1, int y1, int x2, int y2)
-        {
-            // Asegurar que las coordenadas estén dentro del canvas
-            x1 = Math.Max(0, Math.Min(x1, canvas.Width - 1));
-            y1 = Math.Max(0, Math.Min(y1, canvas.Height - 1));
-            x2 = Math.Max(0, Math.Min(x2, canvas.Width - 1));
-            y2 = Math.Max(0, Math.Min(y2, canvas.Height - 1));
-
-            // Normalizar coordenadas
-            int minX = Math.Min(x1, x2);
-            int maxX = Math.Max(x1, x2);
-            int minY = Math.Min(y1, y2);
-            int maxY = Math.Max(y1, y2);
-
-            Color targetColor = color.ToLower() switch
-            {
-                "red" => Color.Red,
-                "blue" => Color.Blue,
-                "green" => Color.Green,
-                "yellow" => Color.Yellow,
-                "orange" => Color.Orange,
-                "purple" => Color.Purple,
-                "black" => Color.Black,
-                "white" => Color.White,
-                "transparent" => Color.Transparent,
-                _ => throw new Exception($"Color no válido: '{color}'")
-            };
-
-            int count = 0;
-
-            // Contar píxeles del color especificado
-            for (int x = minX; x <= maxX; x++)
-            {
-                for (int y = minY; y <= maxY; y++)
-                {
-                    if (canvas.GetPixel(x, y).ToArgb() == targetColor.ToArgb())
-                    {
-                        count++;
-                    }
-                }
-            }
-
-            return count;
-        }
 
         public int IsBrushColor(string color)
         {
@@ -283,22 +213,15 @@ namespace Pixel_Wall_E
                 "black" => Color.Black,
                 "white" => Color.White,
                 "transparent" => Color.Transparent,
-                _ => throw new Exception($"Color no válido: '{color}'")
+                _ => Color.Empty
             };
-
-            return currentColor.ToArgb() == targetColor.ToArgb() ? 1 : 0;
+            return currentColor == targetColor ? 1 : 0;
         }
 
-        public int IsBrushSize(int size)
-        {
-            return brushSize == size ? 1 : 0;
-        }
+        public int IsBrushSize(int size) => brushSize == size ? 1 : 0;
 
-        public int IsCanvasColor(string color, int vertical, int horizontal)
+        public int IsCanvasColor(string color, int x, int y)
         {
-            int x = currentPosition.X + horizontal;
-            int y = currentPosition.Y + vertical;
-
             if (x < 0 || y < 0 || x >= canvas.Width || y >= canvas.Height)
                 return 0;
 
@@ -313,16 +236,95 @@ namespace Pixel_Wall_E
                 "black" => Color.Black,
                 "white" => Color.White,
                 "transparent" => Color.Transparent,
-                _ => throw new Exception($"Color no válido: '{color}'")
+                _ => Color.Empty
             };
 
-            return canvas.GetPixel(x, y).ToArgb() == targetColor.ToArgb() ? 1 : 0;
+            return canvas.GetPixel(x, y) == targetColor ? 1 : 0;
         }
 
-        // Eventos de la interfaz
-        private void textBoxCode_TextChanged(object sender, EventArgs e)
+        public int GetColorCount(string color, int x1, int y1, int x2, int y2)
         {
-            UpdateLineNumbers();
+            int minX = Math.Max(0, Math.Min(x1, x2));
+            int maxX = Math.Min(canvas.Width - 1, Math.Max(x1, x2));
+            int minY = Math.Max(0, Math.Min(y1, y2));
+            int maxY = Math.Min(canvas.Height - 1, Math.Max(y1, y2));
+
+            Color targetColor;
+            try
+            {
+                targetColor = color.ToLower() switch
+                {
+                    "red" => Color.Red,
+                    "blue" => Color.Blue,
+                    "green" => Color.Green,
+                    "yellow" => Color.Yellow,
+                    "orange" => Color.Orange,
+                    "purple" => Color.Purple,
+                    "black" => Color.Black,
+                    "white" => Color.White,
+                    "transparent" => Color.Transparent,
+                    _ => throw new Exception($"Color no válido: '{color}'")
+                };
+            }
+            catch
+            {
+                return 0; 
+            }
+
+            int count = 0;
+
+            for (int y = minY; y <= maxY; y++)
+            {
+                for (int x = minX; x <= maxX; x++)
+                {
+                    if (canvas.GetPixel(x, y).ToArgb() == targetColor.ToArgb())
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        public void Fill()
+        {
+            if (currentPosition.X < 0 || currentPosition.Y < 0 ||
+                currentPosition.X >= canvas.Width || currentPosition.Y >= canvas.Height ||
+                currentColor == Color.Transparent)
+            {
+                return;
+            }
+
+            Color targetColor = canvas.GetPixel(currentPosition.X, currentPosition.Y);
+
+            if (targetColor.ToArgb() == currentColor.ToArgb())
+            {
+                return;
+            }
+
+            Queue<Point> pixels = new Queue<Point>();
+            pixels.Enqueue(currentPosition);
+
+            while (pixels.Count > 0)
+            {
+                Point p = pixels.Dequeue();
+
+                if (p.X < 0 || p.Y < 0 || p.X >= canvas.Width || p.Y >= canvas.Height ||
+                    canvas.GetPixel(p.X, p.Y).ToArgb() != targetColor.ToArgb())
+                {
+                    continue;
+                }
+
+                canvas.SetPixel(p.X, p.Y, currentColor);
+
+                pixels.Enqueue(new Point(p.X - 1, p.Y)); // izquierda
+                pixels.Enqueue(new Point(p.X + 1, p.Y)); // derecha
+                pixels.Enqueue(new Point(p.X, p.Y - 1)); // arriba
+                pixels.Enqueue(new Point(p.X, p.Y + 1)); // abajo
+            }
+
+            panelCanvas.Refresh();
         }
 
         private void btnExecute_Click(object sender, EventArgs e)
@@ -332,10 +334,8 @@ namespace Pixel_Wall_E
                 Cursor = Cursors.WaitCursor;
                 Application.DoEvents();
 
-                // Procesar etiquetas primero
                 interpreter.ProcessLabels(textBoxCode.Lines);
 
-                // Ejecutar cada línea con manejo de errores detallado
                 for (int i = 0; i < textBoxCode.Lines.Length; i++)
                 {
                     try
@@ -352,7 +352,6 @@ namespace Pixel_Wall_E
                     }
                     catch (Exception ex)
                     {
-                        // Resaltar línea con error
                         textBoxCode.SelectionStart = textBoxCode.GetFirstCharIndexFromLine(i);
                         textBoxCode.SelectionLength = textBoxCode.Lines[i].Length;
                         textBoxCode.ScrollToCaret();
@@ -433,31 +432,28 @@ namespace Pixel_Wall_E
         {
             try
             {
-                // Liberar recursos anteriores
                 if (canvas != null) canvas.Dispose();
                 if (graphics != null) graphics.Dispose();
 
-                // Crear nuevo canvas
                 int newSize = (int)numericUpDownCanvasSize.Value;
                 canvas = new Bitmap(newSize, newSize);
                 graphics = Graphics.FromImage(canvas);
                 graphics.Clear(Color.White);
 
-                // Actualizar el PictureBox
                 panelCanvas.Image = canvas;
                 panelCanvas.Size = new Size(newSize, newSize);
-                currentPosition = Point.Empty;
+                panelCanvas.Location = new Point(
+                    textBoxCode.Right + 20,
+                    75
+                );
 
-                // Forzar redibujado
+                currentPosition = Point.Empty;
                 panelCanvas.Invalidate();
                 UpdateStatusBar();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al redimensionar el canvas:\n{ex.Message}",
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                MessageBox.Show($"Error al redimensionar: {ex.Message}");
             }
         }
 
@@ -471,22 +467,18 @@ namespace Pixel_Wall_E
         {
             try
             {
-                // Liberar recursos anteriores
                 if (canvas != null) canvas.Dispose();
                 if (graphics != null) graphics.Dispose();
 
-                // Crear nuevo canvas con el tamaño especificado
                 int newSize = (int)numericUpDownCanvasSize.Value;
                 canvas = new Bitmap(newSize, newSize);
                 graphics = Graphics.FromImage(canvas);
                 graphics.Clear(Color.White);
 
-                // Actualizar el PictureBox
                 panelCanvas.Image = canvas;
                 panelCanvas.Size = new Size(newSize, newSize);
-                currentPosition = Point.Empty; // Resetear posición
+                currentPosition = Point.Empty; 
 
-                // Forzar redibujado
                 panelCanvas.Invalidate();
                 UpdateStatusBar();
             }
@@ -502,6 +494,10 @@ namespace Pixel_Wall_E
         private void Form1_Resize(object sender, EventArgs e)
         {
             lineNumbersTextBox.Height = textBoxCode.Height;
+            panelCanvas.Location = new Point(
+                textBoxCode.Right + 20,
+                75
+            );
         }
     }
 }

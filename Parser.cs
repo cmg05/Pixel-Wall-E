@@ -52,7 +52,11 @@ namespace Pixel_Wall_E
 
         private void Statement()
         {
-            if (Match(TokenType.Spawn)) SpawnStatement();
+            if (Match(TokenType.Label))
+            {
+                Advance();
+            }
+            else if (Match(TokenType.Spawn)) SpawnStatement();
             else if (Match(TokenType.Color)) ColorStatement();
             else if (Match(TokenType.Size)) SizeStatement();
             else if (Match(TokenType.DrawLine)) DrawLineStatement();
@@ -132,13 +136,6 @@ namespace Pixel_Wall_E
             int height = Expression();
             Consume(TokenType.RightParen, "Se esperaba ')' al final de DrawRectangle");
             _form.DrawRectangle(dirX, dirY, distance, width, height);
-        }
-
-        private void FillStatement()
-        {
-            Consume(TokenType.LeftParen, "Se esperaba '(' después de Fill");
-            Consume(TokenType.RightParen, "Se esperaba ')' al final de Fill");
-            _form.Fill();
         }
 
         private void GotoStatement()
@@ -251,59 +248,63 @@ namespace Pixel_Wall_E
 
         private int FunctionCall()
         {
-            string funcName = Consume(TokenType.Identifier, "Se esperaba nombre de función").Value;
+            string funcName = Consume(TokenType.Identifier, "Se esperaba nombre de función").Value.ToLower();
             Consume(TokenType.LeftParen, "Se esperaba '(' después de nombre de función");
 
-            int result = funcName switch
+            int result = 0;
+
+            switch (funcName)
             {
-                "GetActualX" => _form.GetActualX(),
-                "GetActualY" => _form.GetActualY(),
-                "GetCanvasSize" => _form.GetCanvasSize(),
-                "GetColorCount" => GetColorCountFunction(),
-                "IsBrushColor" => IsBrushColorFunction(),
-                "IsBrushSize" => IsBrushSizeFunction(),
-                "IsCanvasColor" => IsCanvasColorFunction(),
-                _ => throw new Exception($"Función no reconocida: {funcName}")
-            };
+                case "getactualx":
+                    result = _form.GetActualX();
+                    break;
+                case "getactualy":
+                    result = _form.GetActualY();
+                    break;
+                case "getcanvassize":
+                    result = _form.GetCanvasSize();
+                    break;
+                case "isbrushcolor":
+                    string color = Consume(TokenType.String, "Se esperaba color como string").Value.Trim('"');
+                    result = _form.IsBrushColor(color);
+                    break;
+                case "isbrushsize":
+                    int size = Expression();
+                    result = _form.IsBrushSize(size);
+                    break;
+                case "iscanvascolor":
+                    string canvasColor = Consume(TokenType.String, "Se esperaba color como string").Value.Trim('"');
+                    Consume(TokenType.Comma, "Se esperaba ',' después de color");
+                    int x = Expression();
+                    Consume(TokenType.Comma, "Se esperaba ',' después de x");
+                    int y = Expression();
+                    result = _form.IsCanvasColor(canvasColor, x, y);
+                    break;
+                case "getcolorcount":
+                    string countColor = Consume(TokenType.String, "Se esperaba color como string").Value.Trim('"');
+                    Consume(TokenType.Comma, "Se esperaba ',' después de color");
+                    int x1 = Expression();
+                    Consume(TokenType.Comma, "Se esperaba ',' después de x1");
+                    int y1 = Expression();
+                    Consume(TokenType.Comma, "Se esperaba ',' después de y1");
+                    int x2 = Expression();
+                    Consume(TokenType.Comma, "Se esperaba ',' después de x2");
+                    int y2 = Expression();
+                    result = _form.GetColorCount(countColor, x1, y1, x2, y2);
+                    break;
+                default:
+                    throw new Exception($"Función no reconocida: {funcName}");
+            }
 
             Consume(TokenType.RightParen, "Se esperaba ')' al final de llamada a función");
             return result;
         }
 
-        private int GetColorCountFunction()
+        private void FillStatement()
         {
-            string color = Consume(TokenType.String, "Se esperaba color como string").Value.Trim('"');
-            Consume(TokenType.Comma, "Se esperaba ',' después de color");
-            int x1 = Expression();
-            Consume(TokenType.Comma, "Se esperaba ',' después de x1");
-            int y1 = Expression();
-            Consume(TokenType.Comma, "Se esperaba ',' después de y1");
-            int x2 = Expression();
-            Consume(TokenType.Comma, "Se esperaba ',' después de x2");
-            int y2 = Expression();
-            return _form.GetColorCount(color, x1, y1, x2, y2);
-        }
-
-        private int IsBrushColorFunction()
-        {
-            string color = Consume(TokenType.String, "Se esperaba color como string").Value.Trim('"');
-            return _form.IsBrushColor(color);
-        }
-
-        private int IsBrushSizeFunction()
-        {
-            int size = Expression();
-            return _form.IsBrushSize(size);
-        }
-
-        private int IsCanvasColorFunction()
-        {
-            string color = Consume(TokenType.String, "Se esperaba color como string").Value.Trim('"');
-            Consume(TokenType.Comma, "Se esperaba ',' después de color");
-            int vertical = Expression();
-            Consume(TokenType.Comma, "Se esperaba ',' después de vertical");
-            int horizontal = Expression();
-            return _form.IsCanvasColor(color, vertical, horizontal);
+            Consume(TokenType.LeftParen, "Se esperaba '(' después de Fill");
+            Consume(TokenType.RightParen, "Se esperaba ')' al final de Fill");
+            _form.Fill();
         }
 
         private bool Condition()
@@ -385,7 +386,7 @@ namespace Pixel_Wall_E
                 };
             }
 
-            return left != 0; // Cualquier valor distinto de 0 es verdadero
+            return left != 0; 
         }
 
         private int Expression()

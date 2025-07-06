@@ -27,6 +27,7 @@ namespace Pixel_Wall_E
         private int _lastSizeChecked;
         private int _lastVertical;
         private int _lastHorizontal;
+        private int _lastX1, _lastY1, _lastX2, _lastY2;
         private bool _hasSpawned = false;
 
         public WallEInterpreter(Form1 form)
@@ -37,33 +38,36 @@ namespace Pixel_Wall_E
 
         private void InitializeBuiltInFunctions()
         {
-            _builtInFunctions["getactualx"] = _form.GetActualX;
-            _builtInFunctions["getactualy"] = _form.GetActualY;
-            _builtInFunctions["getcanvassize"] = _form.GetCanvasSize;
+            _builtInFunctions["getactualx"] = () => _form.GetActualX();
+            _builtInFunctions["getactualy"] = () => _form.GetActualY();
+            _builtInFunctions["getcanvassize"] = () => _form.GetCanvasSize();
             _builtInFunctions["isbrushcolor"] = () => _form.IsBrushColor(_lastColorChecked);
             _builtInFunctions["isbrushsize"] = () => _form.IsBrushSize(_lastSizeChecked);
             _builtInFunctions["iscanvascolor"] = () => _form.IsCanvasColor(_lastColorChecked, _lastVertical, _lastHorizontal);
+            _builtInFunctions["getcolorcount"] = () => _form.GetColorCount(_lastColorChecked, _lastX1, _lastY1, _lastX2, _lastY2);
         }
 
         public void ProcessLabels(string[] lines)
         {
+            _labels.Clear();
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i].Trim();
 
-                // Ignorar líneas vacías o comentarios
                 if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
                     continue;
 
-                // Detectar etiquetas (terminan con :)
-                if (line.EndsWith(":") && !line.Contains(" "))
+                if (line.EndsWith(":") || line.Split()[0].EndsWith(":"))
                 {
-                    string label = line.Substring(0, line.Length - 1).ToLower();
+                    string label = line.Split(':')[0].Trim().ToLower();
+
+                    if (string.IsNullOrWhiteSpace(label))
+                        continue;
 
                     if (_labels.ContainsKey(label))
                         throw new Exception($"Etiqueta duplicada: '{label}'");
 
-                    _labels[label] = i; // Guardar el número de línea (0-based)
+                    _labels[label] = i;
                 }
             }
         }
@@ -122,7 +126,7 @@ namespace Pixel_Wall_E
                 }
                 else if (command.StartsWith("goto[", StringComparison.OrdinalIgnoreCase))
                 {
-                    ExecuteGoto(command, lineNumber);
+                    ExecuteGoto(command, lineNumber - 1);
                 }
                 else if (command.Contains("<-"))
                 {
@@ -207,15 +211,16 @@ namespace Pixel_Wall_E
 
         private void ExecuteGoto(string command, int currentLine)
         {
+            command = command.ToLower(); 
+
             int labelStart = command.IndexOf('[') + 1;
             int labelEnd = command.IndexOf(']');
             if (labelStart < 1 || labelEnd < labelStart)
                 throw new Exception("Formato Goto incorrecto. Use: Goto[etiqueta](condición)");
 
-            string label = command.Substring(labelStart, labelEnd - labelStart).Trim().ToLower();
-
+            string label = command.Substring(labelStart, labelEnd - labelStart).Trim();
             string condition = "true";
-            int condStart = command.IndexOf('(');
+            int condStart = command.IndexOf('(', labelEnd);
             if (condStart > labelEnd)
             {
                 int condEnd = command.IndexOf(')', condStart);
@@ -245,10 +250,7 @@ namespace Pixel_Wall_E
 
             try
             {
-                // Evaluar la expresión del lado derecho (puede ser función, variable o expresión)
                 int value = EvaluateFunctionOrExpression(expression);
-
-                // Asignar el valor a la variable
                 _variables[varName] = value;
             }
             catch (Exception ex)
@@ -261,7 +263,6 @@ namespace Pixel_Wall_E
         {
             input = input.Trim().ToLower();
 
-            // 1. Verificar si es una función incorporada
             if (input.EndsWith(")"))
             {
                 string funcName = input.Split('(')[0];
@@ -280,8 +281,6 @@ namespace Pixel_Wall_E
                     }
                 }
             }
-
-            // 2. Si no es función, evaluar como expresión normal
             return EvaluateExpression(input);
         }
 
@@ -366,13 +365,11 @@ namespace Pixel_Wall_E
 
         private int EvaluateMathExpressionWithVariables(string expression)
         {
-            // Primero reemplazar todas las variables por sus valores
             foreach (var variable in _variables)
             {
                 expression = expression.Replace(variable.Key, variable.Value.ToString());
             }
 
-            // Luego evaluar la expresión matemática
             return EvaluatePureMathExpression(expression);
         }
 
@@ -382,7 +379,6 @@ namespace Pixel_Wall_E
             {
                 expression = expression.Replace(" ", "");
 
-                // Manejar paréntesis
                 while (expression.Contains('('))
                 {
                     int open = expression.LastIndexOf('(');
@@ -416,7 +412,6 @@ namespace Pixel_Wall_E
                 {
                     if (i + op.Length <= expr.Length && expr.Substring(i, op.Length) == op)
                     {
-                        // Manejar signo negativo
                         if (op == "-" && (i == 0 || "+-*/%(".Contains(expr[i - 1].ToString())))
                         {
                             continue;
@@ -459,102 +454,12 @@ namespace Pixel_Wall_E
                    expr.Contains('%') || expr.Contains("**");
         }
 
-        private int EvaluateMathExpression(string expression)
-        {
-            try
-            {
-                // Eliminar espacios
-                expression = expression.Replace(" ", "");
-
-                // Manejar paréntesis primero
-                while (expression.Contains('('))
-                {
-                    int openParen = expression.LastIndexOf('(');
-                    int closeParen = expression.IndexOf(')', openParen);
-
-                    if (closeParen == -1)
-                        throw new Exception("Paréntesis no balanceados");
-
-                    string subExpr = expression.Substring(openParen + 1, closeParen - openParen - 1);
-                    int subResult = EvaluateMathExpression(subExpr);
-                    expression = expression.Remove(openParen, closeParen - openParen + 1)
-                                     .Insert(openParen, subResult.ToString());
-                }
-
-                // Evaluar operadores en orden de precedencia
-                expression = EvaluateOperator(expression, "**");  // Potencia
-                expression = EvaluateOperator(expression, "*", "/", "%");  // Multiplicación/división/módulo
-                expression = EvaluateOperator(expression, "+", "-");  // Suma/resta
-
-                // Verificar si el resultado es un número válido
-                if (int.TryParse(expression, out int result))
-                {
-                    return result;
-                }
-                throw new Exception($"Expresión no pudo ser evaluada completamente: '{expression}'");
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error al evaluar expresión matemática: '{expression}'. {ex.Message}");
-            }
-        }
-
-        private string EvaluateOperator(string expression, params string[] operators)
-        {
-            int i = 0;
-            while (i < expression.Length)
-            {
-                foreach (string op in operators)
-                {
-                    if (i + op.Length <= expression.Length &&
-                        expression.Substring(i, op.Length) == op)
-                    {
-                        // Manejar operadores unarios (como negativo)
-                        if (op == "-" && (i == 0 || "+-*/%(".Contains(expression[i - 1].ToString())))
-                        {
-                            i++;
-                            continue;
-                        }
-
-                        // Encontrar operandos
-                        int leftStart = FindOperandStart(expression, i - 1);
-                        int rightEnd = FindOperandEnd(expression, i + op.Length);
-
-                        string leftStr = expression.Substring(leftStart, i - leftStart);
-                        string rightStr = expression.Substring(i + op.Length, rightEnd - (i + op.Length));
-
-                        int left = EvaluateExpression(leftStr);
-                        int right = EvaluateExpression(rightStr);
-
-                        int result = op switch
-                        {
-                            "**" => (int)Math.Pow(left, right),
-                            "*" => left * right,
-                            "/" => right == 0 ? throw new Exception("División por cero") : left / right,
-                            "%" => left % right,
-                            "+" => left + right,
-                            "-" => left - right,
-                            _ => throw new Exception($"Operador no soportado: '{op}'")
-                        };
-
-                        // Reemplazar la expresión con el resultado
-                        expression = expression[..leftStart] + result.ToString() + expression[rightEnd..];
-                        i = leftStart;
-                        break;
-                    }
-                }
-                i++;
-            }
-            return expression;
-        }
-
         private int FindOperandStart(string expression, int position)
         {
             int start = position;
             while (start >= 0)
             {
                 char c = expression[start];
-                // Permitir dígitos, punto decimal y signo negativo al inicio
                 if (char.IsDigit(c) || c == '.' || (c == '-' && (start == 0 || "+-*/%(".Contains(expression[start - 1].ToString()))))
                 {
                     start--;
@@ -564,7 +469,7 @@ namespace Pixel_Wall_E
                     break;
                 }
             }
-            return start + 1; // Ajustar a la posición correcta
+            return start + 1; 
         }
 
         private int FindOperandEnd(string expression, int position)
@@ -573,7 +478,6 @@ namespace Pixel_Wall_E
             while (end < expression.Length)
             {
                 char c = expression[end];
-                // Permitir dígitos y punto decimal
                 if (char.IsDigit(c) || c == '.')
                 {
                     end++;
@@ -586,44 +490,45 @@ namespace Pixel_Wall_E
             return end;
         }
 
-        private int FindOperandStart(string expression, int start, bool allowNegative)
-        {
-            while (start >= 0 && (char.IsDigit(expression[start]) ||
-                  (allowNegative && expression[start] == '-' && (start == 0 || !char.IsDigit(expression[start - 1])))))
-            {
-                start--;
-            }
-            return start + 1;
-        }
-
-        private int FindOperandEnd(string expression, int start, bool allowNegative)
-        {
-            int end = start;
-            if (allowNegative && end < expression.Length && expression[end] == '-')
-            {
-                end++;
-            }
-            while (end < expression.Length && char.IsDigit(expression[end]))
-            {
-                end++;
-            }
-            return end;
-        }
-
         private bool EvaluateCondition(string condition)
         {
             condition = condition.Trim().ToLower();
 
-            if (condition == "true") return true;
-            if (condition == "false") return false;
-
-            if (_boolVariables.TryGetValue(condition, out bool boolVar))
+            // Caso 1: Condición simple (sin operadores lógicos)
+            if (!condition.Contains("&&") && !condition.Contains("||"))
             {
-                return boolVar;
+                return EvaluateSimpleCondition(condition);
             }
 
-            string[] comparisonOps = { "==", "!=", ">=", "<=", ">", "<" };
-            foreach (var op in comparisonOps)
+            // Caso 2: Condición con operadores lógicos
+            string[] parts;
+            if (condition.Contains("&&"))
+            {
+                parts = condition.Split(new[] { "&&" }, StringSplitOptions.RemoveEmptyEntries);
+                bool result = true;
+                foreach (var part in parts)
+                {
+                    result = result && EvaluateSimpleCondition(part.Trim());
+                }
+                return result;
+            }
+            else // ||
+            {
+                parts = condition.Split(new[] { "||" }, StringSplitOptions.RemoveEmptyEntries);
+                bool result = false;
+                foreach (var part in parts)
+                {
+                    result = result || EvaluateSimpleCondition(part.Trim());
+                }
+                return result;
+            }
+        }
+
+        private bool EvaluateSimpleCondition(string condition)
+        {
+            // Evaluar comparaciones básicas (==, !=, >, <, >=, <=)
+            string[] operators = { "==", "!=", ">=", "<=", ">", "<" };
+            foreach (var op in operators)
             {
                 if (condition.Contains(op))
                 {
@@ -646,42 +551,8 @@ namespace Pixel_Wall_E
                 }
             }
 
-            if (condition.Contains("&&") || condition.Contains("||"))
-            {
-                string[] logicalOps = condition.Contains("&&") ? new[] { "&&" } : new[] { "||" };
-
-                var parts = condition.Split(logicalOps, StringSplitOptions.RemoveEmptyEntries);
-                bool result = EvaluateCondition(parts[0].Trim());
-
-                for (int i = 1; i < parts.Length; i++)
-                {
-                    bool next = EvaluateCondition(parts[i].Trim());
-                    result = logicalOps[0] == "&&" ? result && next : result || next;
-                }
-
-                return result;
-            }
-
-            try
-            {
-                int numValue = EvaluateExpression(condition);
-                return numValue != 0;
-            }
-            catch
-            {
-                throw new Exception($"No se puede evaluar la condición: '{condition}'");
-            }
-        }
-
-        private bool IsBooleanExpression(string expression)
-        {
-            expression = expression.Trim().ToLower();
-            return expression.Contains("&&") || expression.Contains("||") ||
-                   expression.Contains("==") || expression.Contains("!=") ||
-                   expression.Contains(">=") || expression.Contains("<=") ||
-                   expression.Contains(">") || expression.Contains("<") ||
-                   expression == "true" || expression == "false" ||
-                   _boolVariables.ContainsKey(expression);
+            // Si no es comparación, evaluar como expresión booleana (0 = false, otro = true)
+            return EvaluateExpression(condition) != 0;
         }
 
         private bool IsValidVariableName(string name)
