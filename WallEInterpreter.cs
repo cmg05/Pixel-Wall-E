@@ -6,6 +6,7 @@ namespace Pixel_Wall_E
 {
     public class WallEInterpreter
     {
+        // Excepción personalizada para saltos condicionales (Goto)
         public class GotoException : Exception
         {
             public int TargetLine { get; }
@@ -16,13 +17,14 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Variables y diccionarios para estado interno y almacenamiento
         private readonly Form1 _form;
         private readonly Dictionary<string, int> _variables = new Dictionary<string, int>();
         private readonly Dictionary<string, bool> _boolVariables = new Dictionary<string, bool>();
         private readonly Dictionary<string, int> _labels = new Dictionary<string, int>();
         private readonly Dictionary<string, Func<int>> _builtInFunctions = new Dictionary<string, Func<int>>();
 
-        // Variables para almacenar parámetros de funciones
+        // Variables para almacenar parámetros usados en funciones
         private string _lastColorChecked;
         private int _lastSizeChecked;
         private int _lastVertical;
@@ -30,12 +32,14 @@ namespace Pixel_Wall_E
         private int _lastX1, _lastY1, _lastX2, _lastY2;
         private bool _hasSpawned = false;
 
+        // Constructor que recibe referencia al formulario para interacción
         public WallEInterpreter(Form1 form)
         {
             _form = form;
             InitializeBuiltInFunctions();
         }
 
+        // Inicialización de funciones internas disponibles para el intérprete
         private void InitializeBuiltInFunctions()
         {
             _builtInFunctions["getactualx"] = () => _form.GetActualX();
@@ -47,6 +51,7 @@ namespace Pixel_Wall_E
             _builtInFunctions["getcolorcount"] = () => _form.GetColorCount(_lastColorChecked, _lastX1, _lastY1, _lastX2, _lastY2);
         }
 
+        // Procesa y registra etiquetas (labels) en el código para saltos
         public void ProcessLabels(string[] lines)
         {
             _labels.Clear();
@@ -72,13 +77,13 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Método principal para interpretar y ejecutar un comando por línea
         public void ExecuteCommand(string command, int lineNumber)
         {
             try
             {
                 command = command.Trim();
 
-                // Ignorar líneas vacías o comentarios
                 if (string.IsNullOrWhiteSpace(command) || command.StartsWith("//") || command.EndsWith(":"))
                 {
                     return;
@@ -156,6 +161,8 @@ namespace Pixel_Wall_E
                 throw new Exception($"Error en línea {lineNumber}: {ex.Message}");
             }
         }
+
+        // Métodos para ejecutar comandos específicos
 
         private void ExecuteSpawn(string command)
         {
@@ -259,6 +266,7 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Evaluar función o expresión matemática
         private int EvaluateFunctionOrExpression(string input)
         {
             input = input.Trim().ToLower();
@@ -297,6 +305,7 @@ namespace Pixel_Wall_E
             int count = _form.GetColorCount(color, x1, y1, x2, y2);
         }
 
+        // Ejecutar funciones con parámetros para consultas de estado
         private void ExecuteFunctionWithParams(string command)
         {
             var parts = command.Split(new[] { '(', ')' }, StringSplitOptions.RemoveEmptyEntries);
@@ -323,6 +332,7 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Extraer parámetros de un comando entre paréntesis
         private string[] ExtractParameters(string command, int expectedCount)
         {
             int start = command.IndexOf('(') + 1;
@@ -338,6 +348,7 @@ namespace Pixel_Wall_E
             return parameters;
         }
 
+        // Evaluar expresión numérica o variable
         private int EvaluateExpression(string expression)
         {
             expression = expression.Trim().ToLower();
@@ -363,6 +374,7 @@ namespace Pixel_Wall_E
             throw new Exception($"No se puede evaluar la expresión: '{expression}'");
         }
 
+        // Evaluar expresión matemática con variables
         private int EvaluateMathExpressionWithVariables(string expression)
         {
             foreach (var variable in _variables)
@@ -373,6 +385,7 @@ namespace Pixel_Wall_E
             return EvaluatePureMathExpression(expression);
         }
 
+        // Evaluar expresión matemática pura (sin variables)
         private int EvaluatePureMathExpression(string expression)
         {
             try
@@ -404,6 +417,7 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Evaluar operadores matemáticos en expresión
         private string EvaluateMathOperator(string expr, params string[] operators)
         {
             for (int i = 0; i < expr.Length; i++)
@@ -446,7 +460,7 @@ namespace Pixel_Wall_E
             return expr;
         }
 
-
+        // Verificar si la expresión contiene operadores matemáticos
         private bool ContainsMathOperators(string expr)
         {
             return expr.Contains('+') || expr.Contains('-') ||
@@ -454,6 +468,7 @@ namespace Pixel_Wall_E
                    expr.Contains('%') || expr.Contains("**");
         }
 
+        // Encontrar inicio del operando izquierdo para una operación
         private int FindOperandStart(string expression, int position)
         {
             int start = position;
@@ -472,6 +487,7 @@ namespace Pixel_Wall_E
             return start + 1; 
         }
 
+        // Encontrar fin del operando derecho para una operación
         private int FindOperandEnd(string expression, int position)
         {
             int end = position;
@@ -490,6 +506,7 @@ namespace Pixel_Wall_E
             return end;
         }
 
+        // Evaluar condición booleana completa con operadores lógicos
         private bool EvaluateCondition(string condition)
         {
             condition = condition.Trim().ToLower();
@@ -524,6 +541,7 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Evaluar condición simple sin operadores lógicos
         private bool EvaluateSimpleCondition(string condition)
         {
             // Evaluar comparaciones básicas (==, !=, >, <, >=, <=)
@@ -555,6 +573,7 @@ namespace Pixel_Wall_E
             return EvaluateExpression(condition) != 0;
         }
 
+        // Validar nombre de variable válido
         private bool IsValidVariableName(string name)
         {
             if (string.IsNullOrWhiteSpace(name))

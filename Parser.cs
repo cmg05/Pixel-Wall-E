@@ -6,6 +6,8 @@ namespace Pixel_Wall_E
 {
     public class Parser
     {
+        /* Variables internas para tokens, posición actual, referencia al formulario
+        y almacenamiento de variables, etiquetas y bucles */
         private readonly List<Token> _tokens;
         private int _current;
         private readonly Form1 _form;
@@ -14,12 +16,14 @@ namespace Pixel_Wall_E
         private readonly Dictionary<string, int> _labels = new Dictionary<string, int>();
         private readonly Stack<int> _loopStack = new Stack<int>();
 
+        // Constructor recibe lista de tokens y referencia al formulario
         public Parser(List<Token> tokens, Form1 form)
         {
             _tokens = tokens;
             _form = form;
         }
 
+        // Método principal que inicia el parseo completo
         public void Parse()
         {
             while (!IsAtEnd())
@@ -50,6 +54,7 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Parsear una sentencia según el token actual
         private void Statement()
         {
             if (Match(TokenType.Label))
@@ -71,6 +76,8 @@ namespace Pixel_Wall_E
             else if (Match(TokenType.NewLine)) Advance(); // Ignorar saltos de línea
             else throw new Exception($"Declaración no válida: {Peek().Value}");
         }
+
+        // Sentencias específicas para cada comando
 
         private void SpawnStatement()
         {
@@ -203,17 +210,7 @@ namespace Pixel_Wall_E
             }
         }
 
-        private void EndWhileStatement()
-        {
-            if (_loopStack.Count == 0)
-            {
-                throw new Exception("EndWhile sin While correspondiente");
-            }
-
-            int loopStart = _loopStack.Peek();
-            throw new GotoException(loopStart);
-        }
-
+        // Asignación de variables con soporte para booleanos y llamadas a funciones
         private void Assignment()
         {
             string varName = Previous().Value;
@@ -237,6 +234,7 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Verifica si la siguiente expresión es una llamada a función
         private bool IsFunctionCall()
         {
             if (Peek().Type != TokenType.Identifier) return false;
@@ -246,6 +244,7 @@ namespace Pixel_Wall_E
             return nextPos < _tokens.Count && _tokens[nextPos].Type == TokenType.LeftParen;
         }
 
+        // Ejecuta la llamada a función y devuelve el resultado
         private int FunctionCall()
         {
             string funcName = Consume(TokenType.Identifier, "Se esperaba nombre de función").Value.ToLower();
@@ -307,6 +306,7 @@ namespace Pixel_Wall_E
             _form.Fill();
         }
 
+        // Evaluación de condiciones booleanas y comparaciones
         private bool Condition()
         {
             int leftValue = GetComparativeValue();
@@ -341,6 +341,7 @@ namespace Pixel_Wall_E
             return Expression();
         }
 
+        // Evaluación de expresiones booleanas complejas con NOT y paréntesis
         private bool BooleanExpression()
         {
             if (Match(TokenType.Not))
@@ -389,6 +390,7 @@ namespace Pixel_Wall_E
             return left != 0; 
         }
 
+        // Evaluación de expresiones aritméticas: suma y resta
         private int Expression()
         {
             int value = Term();
@@ -403,6 +405,7 @@ namespace Pixel_Wall_E
             return value;
         }
 
+        // Evaluación de términos: multiplicación, división y módulo
         private int Term()
         {
             int value = Factor();
@@ -424,6 +427,7 @@ namespace Pixel_Wall_E
             return value;
         }
 
+        // Evaluación de factores, incluyendo negación y potencia
         private int Factor()
         {
             if (Match(TokenType.Minus))
@@ -442,6 +446,7 @@ namespace Pixel_Wall_E
             return Primary();
         }
 
+        // Evaluación de valores primarios: números, variables, expresiones entre paréntesis
         private int Primary()
         {
             if (Match(TokenType.Number))
@@ -466,6 +471,8 @@ namespace Pixel_Wall_E
 
             throw new Exception($"Se esperaba expresión, se encontró: {Peek().Value}");
         }
+
+        // Métodos auxiliares para manejo de tokens
 
         private bool Match(params TokenType[] types)
         {

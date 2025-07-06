@@ -9,6 +9,7 @@ namespace Pixel_Wall_E
 {
     public partial class Form1 : Form
     {
+        // Variables de instancia
         private WallEInterpreter interpreter;
         private Bitmap canvas;
         private Graphics graphics;
@@ -17,6 +18,7 @@ namespace Pixel_Wall_E
         private int brushSize = 1;
         private RichTextBox lineNumbersTextBox;
 
+        // Constructor
         public Form1()
         {
             InitializeComponent();
@@ -27,6 +29,7 @@ namespace Pixel_Wall_E
             UpdateStatusBar();
         }
 
+        // Inicialización del canvas de dibujo
         private void InitializeCanvas()
         {
             int size = (int)numericUpDownCanvasSize.Value;
@@ -44,6 +47,7 @@ namespace Pixel_Wall_E
             currentPosition = Point.Empty;
         }
 
+        // Inicialización del control para mostrar números de línea
         private void InitializeLineNumbers()
         {
             lineNumbersTextBox = new RichTextBox
@@ -69,6 +73,7 @@ namespace Pixel_Wall_E
             };
         }
 
+        // Actualización de la barra de estado con información actual
         private void UpdateStatusBar()
         {
             toolStripStatusLabelPosition.Text = $"Posición: ({currentPosition.X}, {currentPosition.Y})";
@@ -76,6 +81,8 @@ namespace Pixel_Wall_E
             toolStripStatusLabelBrush.Text = $"Pincel: {brushSize}px";
         }
 
+        // Métodos públicos para manipulación del estado y dibujo
+        // Establecer posición inicial del cursor de dibujo
         public void ExecuteSpawn(int x, int y)
         {
             if (x < 0 || y < 0 || x >= canvas.Width || y >= canvas.Height)
@@ -85,7 +92,7 @@ namespace Pixel_Wall_E
             UpdateStatusBar();
         }
 
-
+        // Cambiar color del pincel
         public void SetColor(string colorName)
         {
             currentColor = colorName.ToLower() switch
@@ -104,6 +111,7 @@ namespace Pixel_Wall_E
             UpdateStatusBar();
         }
 
+        // Cambiar tamaño del pincel
         public void SetBrushSize(int size)
         {
             brushSize = Math.Max(1, size);
@@ -111,12 +119,12 @@ namespace Pixel_Wall_E
             UpdateStatusBar();
         }
 
+        // Dibujar línea desde la posición actual en dirección y distancia dadas
         public void DrawLine(int dirX, int dirY, int distance)
         {
             if (currentColor == Color.Transparent) return;
             if (distance <= 0) return;
 
-            // Aumentar distancia para líneas más grandes
             distance = (int)(distance * 1.5);
 
             Pen pen = new Pen(currentColor, brushSize);
@@ -134,6 +142,7 @@ namespace Pixel_Wall_E
             UpdateStatusBar();
         }
 
+        // Dibujar círculo en dirección dada con radio especificado
         public void DrawCircle(int dirX, int dirY, int radius)
         {
             if (currentColor == Color.Transparent) return;
@@ -162,6 +171,7 @@ namespace Pixel_Wall_E
             UpdateStatusBar();
         }
 
+        // Dibujar rectángulo en dirección dada con distancia, ancho y alto especificados
         public void DrawRectangle(int dirX, int dirY, int distance, int width, int height)
         {
             if (currentColor == Color.Transparent) return;
@@ -196,10 +206,12 @@ namespace Pixel_Wall_E
             UpdateStatusBar();
         }
 
+        // Métodos para obtener información actual del estado
         public int GetActualX() => currentPosition.X;
         public int GetActualY() => currentPosition.Y;
         public int GetCanvasSize() => canvas.Width;
 
+        // Métodos para verificar estado del pincel y canvas
         public int IsBrushColor(string color)
         {
             Color targetColor = color.ToLower() switch
@@ -242,6 +254,7 @@ namespace Pixel_Wall_E
             return canvas.GetPixel(x, y) == targetColor ? 1 : 0;
         }
 
+        // Contar cantidad de píxeles de un color en un rango dado
         public int GetColorCount(string color, int x1, int y1, int x2, int y2)
         {
             int minX = Math.Max(0, Math.Min(x1, x2));
@@ -287,6 +300,7 @@ namespace Pixel_Wall_E
             return count;
         }
 
+        // Método para rellenar área con color actual
         public void Fill()
         {
             if (currentPosition.X < 0 || currentPosition.Y < 0 ||
@@ -327,6 +341,7 @@ namespace Pixel_Wall_E
             panelCanvas.Refresh();
         }
 
+        // Evento click para ejecutar el código del intérprete
         private void btnExecute_Click(object sender, EventArgs e)
         {
             try
@@ -377,6 +392,7 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Evento click para cargar archivo de código
         private void btnLoad_Click(object sender, EventArgs e)
         {
             OpenFileDialog openFile = new OpenFileDialog
@@ -402,6 +418,7 @@ namespace Pixel_Wall_E
             }
         }
 
+        // Evento click para guardar archivo de código
         private void btnSave_Click(object sender, EventArgs e)
         {
             SaveFileDialog saveFile = new SaveFileDialog
@@ -428,41 +445,7 @@ namespace Pixel_Wall_E
             }
         }
 
-        private void btnResizeCanvas_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                if (canvas != null) canvas.Dispose();
-                if (graphics != null) graphics.Dispose();
-
-                int newSize = (int)numericUpDownCanvasSize.Value;
-                canvas = new Bitmap(newSize, newSize);
-                graphics = Graphics.FromImage(canvas);
-                graphics.Clear(Color.White);
-
-                panelCanvas.Image = canvas;
-                panelCanvas.Size = new Size(newSize, newSize);
-                panelCanvas.Location = new Point(
-                    textBoxCode.Right + 20,
-                    75
-                );
-
-                currentPosition = Point.Empty;
-                panelCanvas.Invalidate();
-                UpdateStatusBar();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error al redimensionar: {ex.Message}");
-            }
-        }
-
-        private void btnClearCanvas_Click(object sender, EventArgs e)
-        {
-            graphics.Clear(Color.White);
-            panelCanvas.Invalidate();
-        }
-
+        // Evento click para redimensionar el canvas
         private void btnResize_Click(object sender, EventArgs e)
         {
             try
@@ -489,15 +472,6 @@ namespace Pixel_Wall_E
                               MessageBoxButtons.OK,
                               MessageBoxIcon.Error);
             }
-        }
-
-        private void Form1_Resize(object sender, EventArgs e)
-        {
-            lineNumbersTextBox.Height = textBoxCode.Height;
-            panelCanvas.Location = new Point(
-                textBoxCode.Right + 20,
-                75
-            );
         }
     }
 }

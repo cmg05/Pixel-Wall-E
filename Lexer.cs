@@ -80,6 +80,7 @@ namespace Pixel_Wall_E
         Comment
     }
 
+    // Clase que representa un token individual con tipo, valor y posición
     public class Token
     {
         public TokenType Type { get; }
@@ -98,6 +99,7 @@ namespace Pixel_Wall_E
         public override string ToString() => $"{Type} '{Value}' (Line {LineNumber}, Col {ColumnNumber})";
     }
 
+    // Clase encargada de analizar la cadena fuente y generar tokens
     public class Lexer
     {
         private readonly string _source;
@@ -110,6 +112,7 @@ namespace Pixel_Wall_E
             _source = source;
         }
 
+        // Método principal que tokeniza toda la fuente
         public List<Token> Tokenize()
         {
             var tokens = new List<Token>();
@@ -118,43 +121,49 @@ namespace Pixel_Wall_E
             {
                 char current = Peek();
 
+                // Manejo de espacios y saltos de línea
                 if (char.IsWhiteSpace(current))
                 {
                     if (current == '\n')
                     {
                         tokens.Add(new Token(TokenType.NewLine, "\\n", _lineNumber, _columnNumber));
                         _lineNumber++;
-                        _columnNumber = 0; // Reset to 0 (se incrementará a 1 después)
+                        _columnNumber = 0; 
                     }
                     _position++;
                     _columnNumber++;
                     continue;
                 }
 
+                // Comentarios de línea (//)
                 if (current == '/' && PeekNext() == '/')
                 {
                     tokens.Add(ReadComment());
                     continue;
                 }
 
+                // Números
                 if (char.IsDigit(current))
                 {
                     tokens.Add(ReadNumber());
                     continue;
                 }
 
+                // Identificadores o palabras clave
                 if (char.IsLetter(current) || current == '_')
                 {
                     tokens.Add(ReadIdentifierOrKeyword());
                     continue;
                 }
 
+                // Cadenas entre comillas dobles
                 if (current == '"')
                 {
                     tokens.Add(ReadString());
                     continue;
                 }
 
+                // Símbolos y operadores
                 tokens.Add(ReadSymbolOrOperator());
             }
 
@@ -162,13 +171,15 @@ namespace Pixel_Wall_E
             return tokens;
         }
 
+        // Métodos auxiliares para lectura de caracteres
         private char Peek() => _position < _source.Length ? _source[_position] : '\0';
         private char PeekNext() => _position + 1 < _source.Length ? _source[_position + 1] : '\0';
 
+        // Lectura de comentario hasta fin de línea
         private Token ReadComment()
         {
             int startColumn = _columnNumber;
-            _position += 2; // Salta "//"
+            _position += 2; 
             _columnNumber += 2;
 
             int start = _position;
@@ -181,6 +192,7 @@ namespace Pixel_Wall_E
             return new Token(TokenType.Comment, _source.Substring(start, _position - start), _lineNumber, startColumn);
         }
 
+        // Lectura de número entero
         private Token ReadNumber()
         {
             int start = _position;
@@ -195,6 +207,7 @@ namespace Pixel_Wall_E
             return new Token(TokenType.Number, _source.Substring(start, _position - start), _lineNumber, startColumn);
         }
 
+        // Lectura de identificador o palabra clave
         private Token ReadIdentifierOrKeyword()
         {
             int start = _position;
@@ -208,6 +221,7 @@ namespace Pixel_Wall_E
 
             string value = _source.Substring(start, _position - start);
 
+            // Identificar etiquetas que terminan con ':'
             if (value.EndsWith(":"))
             {
                 string label = value.TrimEnd(':');
@@ -217,6 +231,7 @@ namespace Pixel_Wall_E
                 }
             }
 
+            // Mapear palabras clave a tipos de token
             TokenType type = value.ToLower() switch
             {
                 "spawn" => TokenType.Spawn,
@@ -252,10 +267,11 @@ namespace Pixel_Wall_E
             return new Token(type, value, _lineNumber, startColumn);
         }
 
+        // Lectura de cadena entre comillas dobles con soporte para caracteres escapados
         private Token ReadString()
         {
             int startColumn = _columnNumber;
-            _position++; // Salta la comilla inicial
+            _position++; 
             _columnNumber++;
 
             int start = _position;
@@ -290,12 +306,13 @@ namespace Pixel_Wall_E
                 throw new Exception($"Cadena sin terminar en línea {_lineNumber}");
 
             string value = _source.Substring(start, _position - start);
-            _position++; // Salta la comilla final
+            _position++; 
             _columnNumber++;
 
             return new Token(TokenType.String, value, _lineNumber, startColumn);
         }
 
+        // Lectura de símbolos y operadores simples y compuestos
         private Token ReadSymbolOrOperator()
         {
             char current = Peek();
